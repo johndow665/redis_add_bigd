@@ -10,13 +10,13 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-func processLines(ctx context.Context, rdb *redis.Client, lines <-chan string, wg *sync.WaitGroup, workerID int) {
+func processLines(ctx context.Context, rdb *redis.Client, lines <-chan string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for line := range lines {
-		key := fmt.Sprintf("key:%d", workerID) // Генерируем уникальный ключ для каждой строки.
-		err := rdb.Set(ctx, key, line, 0).Err()
+		// Добавляем строку в список 'pass' в Redis.
+		err := rdb.RPush(ctx, "pass", line).Err()
 		if err != nil {
-			fmt.Printf("Ошибка при записи в Redis: %v\n", err)
+			fmt.Printf("Ошибка при добавлении строки в список Redis: %v\n", err)
 			continue
 		}
 	}
@@ -49,7 +49,7 @@ func main() {
 	numWorkers := 1 // Укажите нужное количество горутин.
 	for i := 0; i < numWorkers; i++ {
 		wg.Add(1)
-		go processLines(ctx, rdb, lines, &wg, i)
+		go processLines(ctx, rdb, lines, &wg)
 	}
 
 	// Читаем строки из файла и отправляем их в канал.
