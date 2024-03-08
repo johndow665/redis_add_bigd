@@ -32,12 +32,20 @@ func main() {
 
 	// Создаем клиент Redis.
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379", // Адрес сервера Redis.
+		Addr:     "127.0.0.1:6379", // Адрес сервера Redis.
 		Password: "",               // Пароль, если есть.
 		DB:       0,                // Используемая база данных.
 	})
 
 	ctx := context.Background()
+
+	// Проверяем подключение к Redis.
+	pong, err := rdb.Ping(ctx).Result()
+	if err != nil {
+		fmt.Printf("Ошибка подключения к Redis: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("Ответ Redis на PING: %s\n", pong)
 
 	// Открываем файл.
 	file, err := os.Open(filePath)
