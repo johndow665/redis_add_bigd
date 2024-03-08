@@ -25,7 +25,7 @@ func processLines(ctx context.Context, rdb *redis.Client, lines <-chan string, w
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Пожалуйста, укажите путь к файлу как аргумент командной строки.")
+		fmt.Println("File path.")
 		os.Exit(1)
 	}
 	filePath := os.Args[1]
