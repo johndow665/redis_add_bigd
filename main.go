@@ -13,16 +13,23 @@ import (
 func processLines(ctx context.Context, rdb *redis.Client, lines <-chan string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for line := range lines {
-		// Добавляем строку в список 'pass' в Redis.
+		fmt.Printf("Взята строка: %s\n", line) // Логирование взятия строки
 		err := rdb.RPush(ctx, "pass", line).Err()
 		if err != nil {
 			fmt.Printf("Ошибка при добавлении строки в список Redis: %v\n", err)
 			continue
 		}
+		fmt.Printf("Добавлена строка в список 'pass': %s\n", line) // Логирование добавления строки
 	}
 }
 
 func main() {
+	if len(os.Args) < 2 {
+		fmt.Println("Пожалуйста, укажите путь к файлу как аргумент командной строки.")
+		os.Exit(1)
+	}
+	filePath := os.Args[1]
+
 	// Создаем клиент Redis.
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379", // Адрес сервера Redis.
@@ -33,9 +40,10 @@ func main() {
 	ctx := context.Background()
 
 	// Открываем файл.
-	file, err := os.Open("your_large_file.txt") // Замените на имя вашего файла.
+	file, err := os.Open(filePath)
 	if err != nil {
-		panic(err)
+		fmt.Printf("Ошибка при открытии файла: %v\n", err)
+		os.Exit(1)
 	}
 	defer file.Close()
 
@@ -46,7 +54,7 @@ func main() {
 	var wg sync.WaitGroup
 
 	// Запускаем горутины.
-	numWorkers := 1 // Укажите нужное количество горутин.
+	numWorkers := 10 // Укажите нужное количество горутин.
 	for i := 0; i < numWorkers; i++ {
 		wg.Add(1)
 		go processLines(ctx, rdb, lines, &wg)
@@ -63,7 +71,8 @@ func main() {
 	wg.Wait()
 
 	if err := scanner.Err(); err != nil {
-		panic(err)
+		fmt.Printf("Ошибка при чтении файла: %v\n", err)
+		os.Exit(1)
 	}
 
 	fmt.Println("Загрузка данных в Redis завершена.")
