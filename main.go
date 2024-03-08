@@ -62,7 +62,7 @@ func main() {
 	var wg sync.WaitGroup
 
 	// Запускаем горутины.
-	numWorkers := 10 // Укажите нужное количество горутин.
+	numWorkers := 1 // Укажите нужное количество горутин.
 	for i := 0; i < numWorkers; i++ {
 		wg.Add(1)
 		go processLines(ctx, rdb, lines, &wg)
