@@ -14,7 +14,7 @@ func processLines(ctx context.Context, rdb *redis.Client, setName string, lines 
 	defer wg.Done()
 	var count int64 = 0
 	pipeline := rdb.Pipeline()
-	const batchSize = 100000
+	const batchSize = 1000000
 	const updateInterval = 10000
 	for line := range lines {
 		pipeline.SAdd(ctx, setName, line)
