@@ -8,7 +8,7 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-func loadLines(ctx context.Context, rdb *redis.Client, setName string, lines <-chan string, batchSize int64, wg *sync.WaitGroup) {
+func LoadLines(ctx context.Context, rdb *redis.Client, setName string, lines <-chan string, batchSize int64, wg *sync.WaitGroup) {
 	defer wg.Done()
 	var count int64 = 0
 	pipeline := rdb.Pipeline()

@@ -10,7 +10,7 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-func parseLines(ctx context.Context, rdb *redis.Client, setName string, filePath string, wg *sync.WaitGroup) {
+func ParseLines(ctx context.Context, rdb *redis.Client, setName string, filePath string, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	file, err := os.Create(filePath)
