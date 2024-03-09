@@ -5,16 +5,16 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"sync"
 
 	"github.com/go-redis/redis/v8"
 )
 
-func processLines(ctx context.Context, rdb *redis.Client, setName string, lines <-chan string, wg *sync.WaitGroup) {
+func processLines(ctx context.Context, rdb *redis.Client, setName string, lines <-chan string, batchSize int64, wg *sync.WaitGroup) {
 	defer wg.Done()
 	var count int64 = 0
 	pipeline := rdb.Pipeline()
-	const batchSize = 1000000
 	const updateInterval = 10000
 	for line := range lines {
 		pipeline.SAdd(ctx, setName, line)
@@ -40,11 +40,22 @@ func processLines(ctx context.Context, rdb *redis.Client, setName string, lines 
 
 func main() {
 	if len(os.Args) < 3 {
-		fmt.Println("Usage: main.exe <set name> <file path>")
+		fmt.Println("Usage: main.exe <set name> <file path> [batch size]")
 		os.Exit(1)
 	}
 	setName := os.Args[1]
 	filePath := os.Args[2]
+
+	// Установка значения batchSize по умолчанию
+	var batchSize int64 = 1000000
+	if len(os.Args) > 3 {
+		var err error
+		batchSize, err = strconv.ParseInt(os.Args[3], 10, 64)
+		if err != nil {
+			fmt.Printf("Ошибка при чтении размера пакета: %v\n", err)
+			os.Exit(1)
+		}
+	}
 
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     "127.0.0.1:6379",
@@ -75,7 +86,7 @@ func main() {
 	numWorkers := 1
 	for i := 0; i < numWorkers; i++ {
 		wg.Add(1)
-		go processLines(ctx, rdb, setName, lines, &wg)
+		go processLines(ctx, rdb, setName, lines, batchSize, &wg)
 	}
 
 	scanner := bufio.NewScanner(file)
