@@ -22,9 +22,9 @@ func LoadLines(ctx context.Context, rdb *redis.Client, setName string, filePath 
 
 	scanner := bufio.NewScanner(file)
 	lines := make(chan string)
-	defer close(lines)
 
 	go func() {
+		defer close(lines) // Закрытие канала после отправки всех строк
 		for scanner.Scan() {
 			lines <- scanner.Text()
 		}
