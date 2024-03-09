@@ -1,15 +1,38 @@
 package load
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"os"
 	"sync"
 
 	"github.com/go-redis/redis/v8"
 )
 
-func LoadLines(ctx context.Context, rdb *redis.Client, setName string, lines <-chan string, batchSize int64, wg *sync.WaitGroup) {
+func LoadLines(ctx context.Context, rdb *redis.Client, setName string, filePath string, batchSize int64, wg *sync.WaitGroup) {
 	defer wg.Done()
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		fmt.Printf("Ошибка при открытии файла: %v\n", err)
+		return
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	lines := make(chan string)
+	defer close(lines)
+
+	go func() {
+		for scanner.Scan() {
+			lines <- scanner.Text()
+		}
+		if err := scanner.Err(); err != nil {
+			fmt.Printf("Ошибка при чтении файла: %v\n", err)
+		}
+	}()
+
 	var count int64 = 0
 	pipeline := rdb.Pipeline()
 	const updateInterval = 10000

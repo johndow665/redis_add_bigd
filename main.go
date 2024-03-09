@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"os"
@@ -51,32 +50,9 @@ func main() {
 			}
 		}
 
-		file, err := os.Open(filePath)
-		if err != nil {
-			fmt.Printf("Ошибка при открытии файла: %v\n", err)
-			os.Exit(1)
-		}
-		defer file.Close()
-
-		lines := make(chan string)
-		numWorkers := 1 // Можно увеличить количество воркеров для ускорения загрузки
-		for i := 0; i < numWorkers; i++ {
-			wg.Add(1)
-			go load.LoadLines(ctx, rdb, setName, lines, batchSize, &wg)
-		}
-
-		scanner := bufio.NewScanner(file)
-		for scanner.Scan() {
-			lines <- scanner.Text()
-		}
-		close(lines)
-
+		wg.Add(1)
+		go load.LoadLines(ctx, rdb, setName, filePath, batchSize, &wg)
 		wg.Wait()
-
-		if err := scanner.Err(); err != nil {
-			fmt.Printf("Ошибка при чтении файла: %v\n", err)
-			os.Exit(1)
-		}
 
 		fmt.Println("Загрузка данных в Redis завершена.")
 
