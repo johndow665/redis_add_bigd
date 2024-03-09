@@ -10,14 +10,14 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-func processLines(ctx context.Context, rdb *redis.Client, lines <-chan string, wg *sync.WaitGroup) {
+func processLines(ctx context.Context, rdb *redis.Client, setName string, lines <-chan string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	var count int64 = 0
-	pipeline := rdb.Pipeline()   // это пайплайн
-	const batchSize = 100        // размер пакета
-	const updateInterval = 10000 // интервал обновления информации
+	pipeline := rdb.Pipeline()
+	const batchSize = 100
+	const updateInterval = 10000
 	for line := range lines {
-		pipeline.SAdd(ctx, "pass", line)
+		pipeline.SAdd(ctx, setName, line)
 		count++
 		if count%batchSize == 0 {
 			_, err := pipeline.Exec(ctx)
@@ -25,7 +25,7 @@ func processLines(ctx context.Context, rdb *redis.Client, lines <-chan string, w
 				fmt.Printf("\nОшибка при добавлении пакета строк в множество Redis: %v\n", err)
 			}
 			if count%updateInterval == 0 {
-				fmt.Printf("\rДобавлено строк в множество 'pass': %d", count)
+				fmt.Printf("\rДобавлено строк в множество '%s': %d", setName, count)
 			}
 		}
 	}
@@ -35,27 +35,25 @@ func processLines(ctx context.Context, rdb *redis.Client, lines <-chan string, w
 			fmt.Printf("\nОшибка при добавлении оставшихся строк в множество Redis: %v\n", err)
 		}
 	}
-	// Выводим окончательное количество добавленных строк
-	fmt.Printf("\rДобавлено строк в множество 'pass': %d\n", count)
+	fmt.Printf("\rДобавлено строк в множество '%s': %d\n", setName, count)
 }
 
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Println("File path.")
+	if len(os.Args) < 3 {
+		fmt.Println("Usage: main.exe <set name> <file path>")
 		os.Exit(1)
 	}
-	filePath := os.Args[1]
+	setName := os.Args[1]
+	filePath := os.Args[2]
 
-	// Создаем клиент Redis.
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "127.0.0.1:6379", // Адрес сервера Redis.
-		Password: "",               // Пароль, если есть.
-		DB:       0,                // Используемая база данных.
+		Addr:     "127.0.0.1:6379",
+		Password: "",
+		DB:       0,
 	})
 
 	ctx := context.Background()
 
-	// Проверяем подключение к Redis.
 	pong, err := rdb.Ping(ctx).Result()
 	if err != nil {
 		fmt.Printf("Ошибка подключения к Redis: %v\n", err)
@@ -63,7 +61,6 @@ func main() {
 	}
 	fmt.Printf("Ответ Redis на PING: %s\n", pong)
 
-	// Открываем файл.
 	file, err := os.Open(filePath)
 	if err != nil {
 		fmt.Printf("Ошибка при открытии файла: %v\n", err)
@@ -71,27 +68,22 @@ func main() {
 	}
 	defer file.Close()
 
-	// Создаем канал для строк файла.
 	lines := make(chan string)
 
-	// Используем WaitGroup для ожидания завершения всех горутин.
 	var wg sync.WaitGroup
 
-	// Запускаем горутины.
-	numWorkers := 1 // Укажите нужное количество горутин.
+	numWorkers := 1
 	for i := 0; i < numWorkers; i++ {
 		wg.Add(1)
-		go processLines(ctx, rdb, lines, &wg)
+		go processLines(ctx, rdb, setName, lines, &wg)
 	}
 
-	// Читаем строки из файла и отправляем их в канал.
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		lines <- scanner.Text()
 	}
-	close(lines) // Закрываем канал после чтения всех строк.
+	close(lines)
 
-	// Ожидаем завершения всех горутин.
 	wg.Wait()
 
 	if err := scanner.Err(); err != nil {
