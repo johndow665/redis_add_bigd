@@ -10,7 +10,7 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-func ParseLines(ctx context.Context, rdb *redis.Client, setName string, filePath string, wg *sync.WaitGroup) {
+func ParseLines(ctx context.Context, rdb *redis.Client, setName string, filePath string, minLen int, maxLen int, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	file, err := os.Create(filePath)
@@ -32,7 +32,7 @@ func ParseLines(ctx context.Context, rdb *redis.Client, setName string, filePath
 
 		pipeline := rdb.Pipeline()
 		for _, key := range keys {
-			if len(key) >= 6 && len(key) <= 24 {
+			if len(key) >= minLen && len(key) <= maxLen {
 				_, err := writer.WriteString(key + "\n")
 				if err != nil {
 					fmt.Printf("Ошибка при записи в файл: %v\n", err)

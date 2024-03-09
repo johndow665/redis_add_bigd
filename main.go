@@ -13,6 +13,10 @@ import (
 )
 
 func main() {
+
+	var minLen, maxLen int // Добавьте объявление переменных здесь
+	var err error
+
 	if len(os.Args) < 4 {
 		fmt.Println("Usage: main.exe <load|parse> <set name> <file path> [batch size]")
 		os.Exit(1)
@@ -57,8 +61,25 @@ func main() {
 		fmt.Println("Загрузка данных в Redis завершена.")
 
 	case "parse":
+		if len(os.Args) < 6 {
+			fmt.Println("Usage: main.exe parse <set name> <file path> <min key length> <max key length>")
+			os.Exit(1)
+		}
+
+		minLen, err = strconv.Atoi(os.Args[4])
+		if err != nil {
+			fmt.Printf("Ошибка при чтении минимальной длины ключа: %v\n", err)
+			os.Exit(1)
+		}
+
+		maxLen, err = strconv.Atoi(os.Args[5])
+		if err != nil {
+			fmt.Printf("Ошибка при чтении максимальной длины ключа: %v\n", err)
+			os.Exit(1)
+		}
+
 		wg.Add(1)
-		go parse.ParseLines(ctx, rdb, setName, filePath, &wg)
+		go parse.ParseLines(ctx, rdb, setName, filePath, minLen, maxLen, &wg)
 		wg.Wait()
 
 	default:
