@@ -14,25 +14,26 @@ func processLines(ctx context.Context, rdb *redis.Client, lines <-chan string, w
 	defer wg.Done()
 	var count int64 = 0
 	pipeline := rdb.Pipeline() // это пайплайн
-	const batchSize = 100      // размер пакет
+	const batchSize = 100      // размер пакета
 	for line := range lines {
 		pipeline.SAdd(ctx, "pass", line)
 		count++
 		if count%batchSize == 0 {
 			_, err := pipeline.Exec(ctx)
 			if err != nil {
-				fmt.Printf("Ошибка при добавлении пакета строк в множество Redis: %v\n", err)
+				fmt.Printf("\nОшибка при добавлении пакета строк в множество Redis: %v\n", err)
+			} else {
+				fmt.Printf("\rДобавлено строк в множество 'pass': %d", count)
 			}
-			fmt.Printf("Добавлено строк в множество 'pass': %d\n", count)
 		}
 	}
 	if count%batchSize != 0 {
 		_, err := pipeline.Exec(ctx)
 		if err != nil {
-			fmt.Printf("Ошибка при добавлении оставшихся строк в множество Redis: %v\n", err)
+			fmt.Printf("\nОшибка при добавлении оставшихся строк в множество Redis: %v\n", err)
 		}
 	}
-	fmt.Printf("Добавлено строк в множество 'pass': %d\n", count)
+	fmt.Printf("\rДобавлено строк в множество 'pass': %d\n", count)
 }
 
 func main() {
