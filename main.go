@@ -12,14 +12,22 @@ import (
 
 func processLines(ctx context.Context, rdb *redis.Client, lines <-chan string, wg *sync.WaitGroup) {
 	defer wg.Done()
+	var count int64 = 0 // Инициализация счётчика добавленных строк
 	for line := range lines {
-		fmt.Printf("Взята строка: %s\n", line) // Логирование взятия строки
-		err := rdb.RPush(ctx, "pass", line).Err()
+		err := rdb.SAdd(ctx, "pass", line).Err()
 		if err != nil {
-			fmt.Printf("Ошибка при добавлении строки в список Redis: %v\n", err)
+			fmt.Printf("Ошибка при добавлении строки в множество Redis: %v\n", err)
 			continue
 		}
-		fmt.Printf("Добавлена строка в список 'pass': %s\n", line) // Логирование добавления строки
+		count++ // Увеличиваем счётчик добавленных строк
+		// Выводим сообщение каждые 100 добавленных строк
+		if count%100 == 0 {
+			fmt.Printf("Добавлено строк в множество 'pass': %d\n", count)
+		}
+	}
+	// Выводим окончательное количество добавленных строк, если оно не кратно 100
+	if count%100 != 0 {
+		fmt.Printf("Добавлено строк в множество 'pass': %d\n", count)
 	}
 }
 
