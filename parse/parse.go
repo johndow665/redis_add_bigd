@@ -23,6 +23,9 @@ func ParseLines(ctx context.Context, rdb *redis.Client, setName string, filePath
 
 	var cursor uint64
 	const pageSize = 1000
+	var matchCount int        // Счетчик для подсчета количества совпадений
+	const logInterval = 50000 // Частота логирования
+
 	for {
 		keys, nextCursor, err := rdb.SScan(ctx, setName, cursor, "", pageSize).Result()
 		if err != nil {
@@ -33,12 +36,18 @@ func ParseLines(ctx context.Context, rdb *redis.Client, setName string, filePath
 		pipeline := rdb.Pipeline()
 		for _, key := range keys {
 			if len(key) >= minLen && len(key) <= maxLen {
+				matchCount++ // Увеличиваем счетчик совпадений
 				_, err := writer.WriteString(key + "\n")
 				if err != nil {
 					fmt.Printf("Ошибка при записи в файл: %v\n", err)
 					return
 				}
 				pipeline.SRem(ctx, setName, key)
+
+				// Логируем каждые logInterval совпадений
+				if matchCount%logInterval == 0 {
+					fmt.Printf("Найдено совпадений: %d\n", matchCount)
+				}
 			}
 		}
 
@@ -59,5 +68,5 @@ func ParseLines(ctx context.Context, rdb *redis.Client, setName string, filePath
 			break
 		}
 	}
-	fmt.Println("Парсинг и удаление данных из Redis завершены.")
+	fmt.Printf("Парсинг и удаление данных из Redis завершены. Всего найдено совпадений: %d\n", matchCount)
 }
