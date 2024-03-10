@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"sync"
 
 	"github.com/go-redis/redis/v8"
@@ -20,40 +21,57 @@ func LoadLines(ctx context.Context, rdb *redis.Client, setName string, filePath 
 	}
 	defer file.Close()
 
+	// Определение начальной позиции для чтения файла
+	startPosition := getLastProcessedLine("tl.txt")
+
 	scanner := bufio.NewScanner(file)
-	lines := make(chan string)
 
-	go func() {
-		defer close(lines) // Закрытие канала после отправки всех строк
-		for scanner.Scan() {
-			lines <- scanner.Text()
-		}
-		if err := scanner.Err(); err != nil {
-			fmt.Printf("Ошибка при чтении файла: %v\n", err)
-		}
-	}()
+	// Пропуск строк до достижения начальной позиции
+	for i := int64(0); i < startPosition && scanner.Scan(); i++ {
+		// Просто продолжаем сканирование без действий
+	}
 
-	var count int64 = 0
 	pipeline := rdb.Pipeline()
-	const updateInterval = 10000
-	for line := range lines {
-		pipeline.SAdd(ctx, setName, line)
+	var count int64 = 0
+	for scanner.Scan() {
+		pipeline.SAdd(ctx, setName, scanner.Text())
 		count++
-		if count%batchSize == 0 {
-			_, err := pipeline.Exec(ctx)
-			if err != nil {
-				fmt.Printf("\nОшибка при добавлении пакета строк в множество Redis: %v\n", err)
-			}
-			if count%updateInterval == 0 {
-				fmt.Printf("\rДобавлено строк в множество '%s': %d", setName, count)
-			}
+		if count == batchSize {
+			break // Завершаем цикл после обработки batchSize строк
 		}
 	}
-	if count%batchSize != 0 {
-		_, err := pipeline.Exec(ctx)
-		if err != nil {
-			fmt.Printf("\nОшибка при добавлении оставшихся строк в множество Redis: %v\n", err)
-		}
+
+	if err := scanner.Err(); err != nil {
+		fmt.Printf("Ошибка при чтении файла: %v\n", err)
+		return
 	}
-	fmt.Printf("\rДобавлено строк в множество '%s': %d\n", setName, count)
+
+	_, err = pipeline.Exec(ctx)
+	if err != nil {
+		fmt.Printf("Ошибка при добавлении строк в множество Redis: %v\n", err)
+		return
+	}
+
+	// Сохранение прогресса после обработки пакета
+	saveLastProcessedLine("tl.txt", startPosition+count)
+	fmt.Printf("Обработано строк с %d по %d\n", startPosition, startPosition+count)
+}
+
+func getLastProcessedLine(filename string) int64 {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return 0 // Если файла нет, начинаем с начала
+	}
+	lineNumber, err := strconv.ParseInt(string(data), 10, 64)
+	if err != nil {
+		return 0 // Если ошибка при чтении, начинаем с начала
+	}
+	return lineNumber
+}
+
+func saveLastProcessedLine(filename string, lineNumber int64) {
+	err := os.WriteFile(filename, []byte(strconv.FormatInt(lineNumber, 10)), 0644)
+	if err != nil {
+		fmt.Printf("Ошибка при записи в файл прогресса: %v\n", err)
+	}
 }
