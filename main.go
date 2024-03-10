@@ -45,7 +45,7 @@ func main() {
 
 	switch mode {
 	case "load":
-		var batchSize int64 = 100000
+		var batchSize int64 = 1000000
 		if len(os.Args) > 4 {
 			batchSize, err = strconv.ParseInt(os.Args[4], 10, 64)
 			if err != nil {
