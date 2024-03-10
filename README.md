@@ -3,7 +3,7 @@
 MINI DOC
 Загрузка данных в бд 
 
-main.exe load pass E:\P\1.txt
+main.exe load pass E:\P\weakpass_3w\1.txt
 
 Парсинг данных из бд
 main.exe parse pass E:\P\test.txt 3 5
