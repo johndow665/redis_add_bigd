@@ -36,7 +36,7 @@ func LoadLines(ctx context.Context, rdb *redis.Client, setName string, filePath 
 	var count int64 = 0
 	pipeline := rdb.Pipeline()
 	const updateInterval = 10000
-	const saveInterval = 10000000 // Интервал для BGSAVE
+	const saveInterval = 1000000 // Интервал для BGSAVE
 	for line := range lines {
 		pipeline.SAdd(ctx, setName, line)
 		count++
