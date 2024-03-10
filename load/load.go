@@ -36,7 +36,6 @@ func LoadLines(ctx context.Context, rdb *redis.Client, setName string, filePath 
 	var count int64 = 0
 	pipeline := rdb.Pipeline()
 	const updateInterval = 10000
-	const saveInterval = 100000 // Интервал для BGSAVE
 	for line := range lines {
 		pipeline.SAdd(ctx, setName, line)
 		count++
@@ -47,14 +46,6 @@ func LoadLines(ctx context.Context, rdb *redis.Client, setName string, filePath 
 			}
 			if count%updateInterval == 0 {
 				fmt.Printf("\rДобавлено строк в множество '%s': %d", setName, count)
-			}
-			if count%saveInterval == 0 {
-				err := rdb.BgSave(ctx).Err()
-				if err != nil {
-					fmt.Printf("\nОшибка при инициации BGSAVE: %v\n", err)
-				} else {
-					fmt.Println("\nBGSAVE инициирован.")
-				}
 			}
 		}
 	}
